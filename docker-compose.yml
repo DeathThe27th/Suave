@@ -1,0 +1,15 @@
+services:
+  olise:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      # persist the deployed contract address and SQLite fallback DB
+      - olise-state:/app/state
+volumes:
+  olise-state:

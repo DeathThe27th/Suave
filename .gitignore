@@ -1,0 +1,11 @@
+.env
+.olise_chain.json
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+olise_local.db
+build/
+dist/
