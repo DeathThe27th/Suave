@@ -40,7 +40,8 @@ TTL_VOLATILE = 15 * 60           # lineups, injuries near kickoff
 TTL_HEALTH = 10 * 60
 
 # --- Gemini -----------------------------------------------------------------
-GEMINI_MODELS = ["gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash"]
+# gemini-2.5-flash was retired for new API users (verified 2026-07-12)
+GEMINI_MODELS = ["gemini-3.5-flash", "gemini-flash-latest"]
 
 # --- X Layer testnet --------------------------------------------------------
 XLAYER_RPCS = ["https://testrpc.xlayer.tech", "https://xlayertestrpc.okx.com"]

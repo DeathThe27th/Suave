@@ -102,9 +102,13 @@ async def research_fixture(dataset: dict) -> dict:
         text, grounded, err = None, False, e
 
     if text is None:
-        note = f"research pass unavailable ({str(err)[:120]})"
-        log.warning(note)
-        return {"factors": [], "note": note, "grounded": False}
+        # raw provider errors are logged, never rendered into the report
+        log.warning("research pass unavailable: %s", str(err)[:200])
+        return {"factors": [],
+                "note": "No verified context research was available for this "
+                        "fixture; projections reflect the quantitative model "
+                        "only.",
+                "grounded": False}
 
     parsed = _extract_json(text) or {}
     factors = []
@@ -126,7 +130,8 @@ async def research_fixture(dataset: dict) -> dict:
 
     if not grounded:
         # Without search grounding we cannot verify currency of claims.
-        note = "search grounding unavailable — context factors omitted, quantitative model only"
+        note = ("Search grounding was unavailable, so context factors are "
+                "omitted; projections reflect the quantitative model only.")
         log.warning(note)
         return {"factors": [], "note": note, "grounded": False}
 

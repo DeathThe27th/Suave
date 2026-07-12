@@ -56,14 +56,16 @@
 <p><b>{{ side.name }}</b> — scored {{ side.form.scored_avg }} / conceded {{ side.form.conceded_avg }} per match</p>
 <table>
   <tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Score</th><th>Res</th>
-      <th class="num">Corners</th><th class="num">Cards</th><th class="num">Shots</th><th class="num">Poss %</th></tr>
+      {% if form_stats %}<th class="num">Corners</th><th class="num">Cards</th><th class="num">Shots</th><th class="num">Poss %</th>{% endif %}</tr>
   {% for m in side.form.matches %}
   <tr><td>{{ m.date }}</td><td>{{ m.opponent }}</td><td>{{ m.home_away }}</td>
       <td>{{ m.score }}</td><td>{{ m.result }}</td>
+      {% if form_stats %}
       <td class="num">{{ m.corners if m.corners is not none else "—" }}</td>
       <td class="num">{{ m.cards if m.cards is not none else "—" }}</td>
       <td class="num">{{ m.shots if m.shots is not none else "—" }}</td>
-      <td class="num">{{ m.possession if m.possession is not none else "—" }}</td></tr>
+      <td class="num">{{ m.possession if m.possession is not none else "—" }}</td>
+      {% endif %}</tr>
   {% endfor %}
 </table>
 {% endfor %}

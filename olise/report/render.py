@@ -38,6 +38,11 @@ def assemble_context(report_id: str, status: str, dataset: dict, engine: dict,
                      research: dict, forecasts: list[dict], summary: str) -> dict:
     fx = dataset["fixture"]
     adjusted = bool(research.get("factors"))
+    form_stats = any(
+        m.get(k) is not None
+        for side in (dataset["home"], dataset["away"])
+        for m in side["form"]["matches"]
+        for k in ("corners", "cards", "shots", "possession"))
     matrix = engine["goals_adj"]["matrix"]
     sub = [row[:6] for row in matrix[:6]]
     matrix_max = max(p for row in sub for p in row) if sub else 0
@@ -53,6 +58,7 @@ def assemble_context(report_id: str, status: str, dataset: dict, engine: dict,
         "city": fx.get("city"),
         "summary": summary,
         "form_n": config.FORM_MATCHES,
+        "form_stats": form_stats,
         "home_block": dataset["home"],
         "away_block": dataset["away"],
         "h2h": dataset["h2h"],
