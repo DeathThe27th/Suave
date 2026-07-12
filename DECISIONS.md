@@ -93,6 +93,25 @@ All decisions made autonomously after the Phase 0 interview, as instructed.
 18. Track record aggregates only `correct`/`incorrect` outcomes; `void` and
     `pending` are excluded from accuracy.
 
+## Data provider switch (2026-07-12)
+
+20. **football-data.org is the preferred provider when `FOOTBALL_DATA_TOKEN`
+    is set** (`olise/data/footballdata.py`, same client interface). Reasons:
+    the API-Football account was suspended, and its free plan cannot see
+    2026 World Cup fixtures at all, while football-data.org's free tier
+    serves the current World Cup schedule with no date-window lock.
+    Trade-offs accepted: the free tier exposes **no match statistics
+    (corners/cards/shots/possession), no lineups and no injuries**, so
+    count-market forecasts are unavailable (the engine's `available` flags
+    already handle this), reports stay PROVISIONAL, and count markets that
+    were forecast under the old provider grade `void` at settlement.
+    Goals markets, last-5 form, H2H and referee data are unaffected.
+    Statuses are mapped to API-Football short codes (`FT`/`AET`/`PEN`/`NS`)
+    so the pipeline's FINISHED semantics are unchanged; the 90-minute score
+    uses `regularTime` when a match went to extra time. A form sample of
+    zero matches for either team aborts the analysis rather than letting a
+    degenerate dataset be hashed and committed onchain.
+
 ## E2E test constraint
 
 19. The Free API-Football plan cannot return 2026 World Cup fixtures

@@ -26,6 +26,11 @@ SELF_URL = os.environ.get("SELF_URL", f"http://127.0.0.1:{PORT}")
 AF_BASE = "https://v3.football.api-sports.io"
 WORLD_CUP_LEAGUE_ID = 1
 WORLD_CUP_SEASON = 2026
+
+# --- football-data.org (preferred provider when its token is set) ------------
+FOOTBALL_DATA_TOKEN = os.environ.get("FOOTBALL_DATA_TOKEN", "")
+FD_BASE = "https://api.football-data.org/v4"
+WORLD_CUP_CODE = "WC"
 FORM_MATCHES = 5
 
 # cache TTLs (seconds) per data family

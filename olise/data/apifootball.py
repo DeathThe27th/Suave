@@ -375,6 +375,18 @@ class ApiFootball:
             "stats": per_team,
         }
 
+    async def health_check(self) -> dict:
+        try:
+            st = await self.status()
+            req = st.get("requests", {})
+            return {"ok": True, "provider": "api-football",
+                    "plan": st.get("subscription", {}).get("plan"),
+                    "requests_today": req.get("current"),
+                    "daily_limit": req.get("limit_day")}
+        except Exception as e:
+            return {"ok": False, "provider": "api-football",
+                    "error": str(e)[:150]}
+
     async def status(self) -> dict:
         r = await self.http.get("/status")
         r.raise_for_status()

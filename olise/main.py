@@ -31,7 +31,11 @@ state = SimpleNamespace(store=None, af=None, chain=None, scheduler=None,
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     state.store = Store()
-    state.af = ApiFootball(state.store)
+    if config.FOOTBALL_DATA_TOKEN:
+        from olise.data.footballdata import FootballData
+        state.af = FootballData(state.store)
+    else:
+        state.af = ApiFootball(state.store)
     state.chain = ChainClient()
     await state.chain.setup()
     state.scheduler = sched_mod.build_scheduler(state)
@@ -172,20 +176,12 @@ async def get_track_record():
 @app.get("/health")
 async def health():
     checks = {}
-    # API-Football (cached to conserve quota)
-    cached = state.store.cache_get("health:af", config.TTL_HEALTH)
+    # data provider (cached to conserve quota)
+    cached = state.store.cache_get("health:data", config.TTL_HEALTH)
     if cached is None:
-        try:
-            st = await state.af.status()
-            req = st.get("requests", {})
-            cached = {"ok": True,
-                      "plan": st.get("subscription", {}).get("plan"),
-                      "requests_today": req.get("current"),
-                      "daily_limit": req.get("limit_day")}
-        except Exception as e:
-            cached = {"ok": False, "error": str(e)[:150]}
-        state.store.cache_set("health:af", "health", {}, cached)
-    checks["api_football"] = cached
+        cached = await state.af.health_check()
+        state.store.cache_set("health:data", "health", {}, cached)
+    checks["data_provider"] = cached
 
     try:
         async with httpx.AsyncClient(timeout=10) as http:
@@ -203,7 +199,7 @@ async def health():
         "running": bool(state.scheduler and state.scheduler.running),
         "jobs": sched_mod.job_status,
     }
-    ok = (checks["api_football"].get("ok")
+    ok = (checks["data_provider"].get("ok")
           and checks["supabase_storage"].get("ok")
           and checks["chain"].get("ok"))
     return {"status": "ok" if ok else "degraded",
