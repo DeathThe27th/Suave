@@ -3,29 +3,44 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: A4; margin: 18mm 16mm; @bottom-center { content: "Olise AI — statistical research for informational purposes. Not financial advice. Page " counter(page) " / " counter(pages); font-size: 7.5pt; color: #777; } }
-  body { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; color: #000; background: #fff; font-size: 9.5pt; line-height: 1.5; }
-  .masthead { border-bottom: 2.5pt solid #000; padding-bottom: 3mm; margin-bottom: 5mm; }
-  .masthead .brand { font-size: 13pt; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; }
-  .masthead .tagline { font-size: 7.5pt; letter-spacing: 2px; text-transform: uppercase; color: #555; margin-top: 1mm; }
-  h1 { font-size: 22pt; margin: 6mm 0 3mm; letter-spacing: -0.5px; font-weight: bold; }
-  .meta { font-size: 9pt; color: #333; line-height: 1.7; margin-bottom: 6mm; }
-  h2 { font-size: 10.5pt; margin: 8mm 0 3mm; text-transform: uppercase; letter-spacing: 1.5px; border-top: 1pt solid #000; padding-top: 2.5mm; }
-  .chip { display: inline-block; padding: 0.5mm 2.5mm; font-weight: bold; font-size: 8pt; letter-spacing: 1px; }
+  @page { size: A4; margin: 20mm 18mm 22mm; @bottom-center { content: "Olise AI — statistical research for informational purposes. Not financial advice. Page " counter(page) " of " counter(pages); font-size: 7pt; letter-spacing: 0.5px; color: #888; } }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; color: #111; background: #fff; font-size: 9pt; line-height: 1.55; }
+
+  .masthead { border-top: 3pt solid #000; border-bottom: 0.6pt solid #000; padding: 2.6mm 0 2.4mm; }
+  .masthead .brand { font-size: 10.5pt; font-weight: bold; letter-spacing: 3.5px; text-transform: uppercase; }
+  .masthead .tagline { font-size: 7pt; letter-spacing: 1.8px; text-transform: uppercase; color: #666; margin-top: 0.8mm; }
+
+  h1 { font-family: "DejaVu Serif", Georgia, serif; font-size: 24pt; font-weight: bold; letter-spacing: -0.3px; margin: 8mm 0 3.5mm; }
+  .meta { font-size: 8.5pt; color: #444; line-height: 1.9; margin-bottom: 4mm; }
+  .meta b { color: #111; }
+
+  h2 { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 2.5px; border-top: 0.6pt solid #000; padding-top: 2.8mm; margin: 9mm 0 3mm; }
+  h2 .secno { color: #999; padding-right: 2.5mm; font-weight: normal; }
+
+  .chip { display: inline-block; padding: 0.4mm 2.4mm; font-weight: bold; font-size: 7.5pt; letter-spacing: 1.5px; vertical-align: 8%; }
   .chip.solid { background: #000; color: #fff; }
-  .chip.outline { border: 1pt solid #000; color: #000; }
-  table { border-collapse: collapse; width: 100%; margin: 2.5mm 0; }
-  th, td { border: 0.25pt solid #bbb; padding: 1.2mm 2mm; text-align: left; }
-  th { font-size: 8pt; text-transform: uppercase; letter-spacing: .5px; font-weight: bold; }
+  .chip.outline { border: 0.8pt solid #000; color: #000; }
+
+  table { border-collapse: collapse; width: 100%; margin: 2.5mm 0 3.5mm; page-break-inside: avoid; }
+  h2 { page-break-after: avoid; }
+  th { font-size: 7pt; text-transform: uppercase; letter-spacing: 1.2px; color: #555; font-weight: normal;
+       text-align: left; padding: 1.4mm 2mm; border-top: 0.8pt solid #000; border-bottom: 0.5pt solid #000; }
+  td { padding: 1.6mm 2mm; border-bottom: 0.3pt solid #ccc; }
+  tr:last-child td { border-bottom: 0.6pt solid #000; }
   td.num, th.num { text-align: right; }
-  .heat td { text-align: center; width: 9mm; font-size: 8pt; border: 0.25pt solid #ccc; }
-  .heat th { text-align: center; }
+
+  .heat { width: auto; margin-left: 1mm; }
+  .heat th { border: none; text-align: center; padding: 1mm 2.5mm; color: #555; font-size: 7.5pt; }
+  .heat td { text-align: center; width: 10mm; font-size: 7.5pt; border: 0.4pt solid #fff; padding: 1.6mm 0; }
+  .heat tr:last-child td { border-bottom: 0.4pt solid #fff; }
+
   .grade { text-align: center; }
-  .flag { border: 1pt solid #000; padding: 3mm; margin: 2mm 0; }
-  .note { color: #555; font-size: 8.5pt; }
-  .summary { border-left: 2.5pt solid #000; padding: 1mm 0 1mm 4mm; }
+  .flag { border-left: 2pt solid #000; padding: 1mm 0 1mm 4mm; margin: 2.5mm 0; }
+  .note { color: #555; font-size: 8pt; }
+  .summary { font-family: "DejaVu Serif", Georgia, serif; font-size: 10.5pt; line-height: 1.65; margin: 3mm 0 1mm; }
   ul { margin: 1mm 0 1mm 5mm; padding: 0; }
-  li { margin-bottom: 1mm; }
+  li { margin-bottom: 1.2mm; }
+  p { margin: 1.6mm 0; }
 </style>
 </head>
 <body>
@@ -37,16 +52,14 @@
 
 <h1>{{ home }} vs {{ away }}</h1>
 <div class="meta">
-  {{ competition }} — {{ stage }}<br>
-  Kickoff: {{ kickoff_utc }} UTC {% if venue %}&middot; {{ venue }}{% if city %}, {{ city }}{% endif %}{% endif %}{% if referee %} &middot; Referee: {{ referee }}{% endif %}<br>
-  Report ID: {{ report_id }} &nbsp;
-  <span class="chip {{ 'solid' if status == 'final' else 'outline' }}">{{ status | upper }}</span><br>
-  <span class="note">The keccak-256 hash of this PDF plus its canonical forecast set is recorded on
+  <b>{{ competition }}</b> &middot; {{ stage }} &middot; Kickoff {{ kickoff_utc }} UTC{% if venue %} &middot; {{ venue }}{% if city %}, {{ city }}{% endif %}{% endif %}{% if referee %} &middot; Referee {{ referee }}{% endif %}<br>
+  Report {{ report_id }} &nbsp;<span class="chip {{ 'solid' if status == 'final' else 'outline' }}">{{ status | upper }}</span><br>
+  <span class="note">The keccak-256 hash of this document and its canonical forecast set is recorded on
   X Layer testnet before kickoff. Verify at <b>GET /verify/{{ report_id }}</b>.</span>
 </div>
 
 {% set ns = namespace(n=0) %}
-{% macro sec(title) %}{% set ns.n = ns.n + 1 %}<h2>{{ ns.n }}. {{ title }}</h2>{% endmacro %}
+{% macro sec(title) %}{% set ns.n = ns.n + 1 %}<h2><span class="secno">{{ '%02d' | format(ns.n) }}</span>{{ title }}</h2>{% endmacro %}
 
 {{ sec("Executive summary") }}
 <p class="summary">{{ summary }}</p>
@@ -55,11 +68,11 @@
 {% for side in [home_block, away_block] %}
 <p><b>{{ side.name }}</b> — scored {{ side.form.scored_avg }} / conceded {{ side.form.conceded_avg }} per match</p>
 <table>
-  <tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Score</th><th>Res</th>
+  <tr><th>Date</th><th>Opponent</th><th>H/A</th><th>Score</th><th>Result</th>
       {% if form_stats %}<th class="num">Corners</th><th class="num">Cards</th><th class="num">Shots</th><th class="num">Poss %</th>{% endif %}</tr>
   {% for m in side.form.matches %}
   <tr><td>{{ m.date }}</td><td>{{ m.opponent }}</td><td>{{ m.home_away }}</td>
-      <td>{{ m.score }}</td><td>{{ m.result }}</td>
+      <td><b>{{ m.score }}</b></td><td>{{ m.result }}</td>
       {% if form_stats %}
       <td class="num">{{ m.corners if m.corners is not none else "—" }}</td>
       <td class="num">{{ m.cards if m.cards is not none else "—" }}</td>
@@ -75,7 +88,7 @@
 <table>
   <tr><th>Date</th><th>Fixture</th><th>Score</th><th>Competition</th></tr>
   {% for m in h2h %}
-  <tr><td>{{ m.date }}</td><td>{{ m.home }} vs {{ m.away }}</td><td>{{ m.score }}</td><td>{{ m.competition }}</td></tr>
+  <tr><td>{{ m.date }}</td><td>{{ m.home }} vs {{ m.away }}</td><td><b>{{ m.score }}</b></td><td>{{ m.competition }}</td></tr>
   {% endfor %}
 </table>
 {% endif %}
@@ -124,7 +137,7 @@ Expected goals — raw model: {{ home }} <b>{{ engine.lambdas.raw_home }}</b>,
 after bounded context adjustments: {{ home }} <b>{{ engine.lambdas.adj_home }}</b>,
 {{ away }} <b>{{ engine.lambdas.adj_away }}</b>{% endif %}.</p>
 
-<p><b>Score probability matrix</b> (rows: {{ home }} goals, columns: {{ away }} goals):</p>
+<p><b>Score probability matrix</b> <span class="note">(rows: {{ home }} goals &middot; columns: {{ away }} goals &middot; darker = more probable)</span></p>
 <table class="heat">
   <tr><th></th>{% for a in range(6) %}<th>{{ a }}</th>{% endfor %}</tr>
   {% for h in range(6) %}
@@ -132,16 +145,16 @@ after bounded context adjustments: {{ home }} <b>{{ engine.lambdas.adj_home }}</
   {% for a in range(6) %}
     {% set p = matrix[h][a] %}
     <td style="background: rgba(0,0,0,{{ '%.2f' | format((p / matrix_max * 0.9) if matrix_max else 0) }});
-               color: {{ '#fff' if matrix_max and p / matrix_max > 0.5 else '#000' }};">
-      {{ '%.1f' | format(p * 100) }}%</td>
+               color: {{ '#fff' if matrix_max and p / matrix_max > 0.5 else '#111' }};">
+      {{ '%.1f' | format(p * 100) }}</td>
   {% endfor %}</tr>
   {% endfor %}
 </table>
-<p class="note">Each cell is the modelled probability of that exact scoreline from two independent
-Poisson distributions (darker = more probable). Every forecast below is derived by summing the
-relevant regions of this matrix (e.g. "Over 2.5 goals" sums all cells where total goals ≥ 3);
-count markets (corners, cards, shots, goal kicks) use the same Poisson projection on their
-combined expected totals.</p>
+<p class="note">Cell values are the modelled percentage probability of that exact scoreline from two
+independent Poisson distributions. Every forecast below is derived by summing the relevant regions
+of this matrix (e.g. "Over 2.5 goals" sums all cells where total goals ≥ 3); count markets
+(corners, cards, shots, goal kicks) use the same Poisson projection on their combined expected
+totals.</p>
 <p>Most likely scorelines: {% for s in top_scores %}<b>{{ s.score }}</b> ({{ '%.1f' | format(s.probability * 100) }}%){% if not loop.last %}, {% endif %}{% endfor %}.</p>
 
 {{ sec("Forecasts") }}
@@ -149,7 +162,7 @@ combined expected totals.</p>
   <tr><th>Market</th><th>Selection</th><th class="num">Model probability</th><th>Confidence</th><th>Key driver</th></tr>
   {% for f in forecasts %}
   <tr>
-    <td>{{ f.market }}</td><td>{{ f.selection }}</td>
+    <td>{{ f.market }}</td><td><b>{{ f.selection }}</b></td>
     <td class="num">{{ '%.1f' | format(f.model_probability * 100) }}%</td>
     <td class="grade">{% if f.grade == 'A' %}<span class="chip solid">A</span>{% elif f.grade == 'B' %}<span class="chip outline">B</span>{% else %}C{% endif %}{% if f.contradiction %} ⚑{% endif %}</td>
     <td class="note">{{ f.drivers | join("; ") }}</td>
