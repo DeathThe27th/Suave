@@ -1,8 +1,10 @@
 """Forecast generation, confidence grading and consistency hashing.
 
-Every market whose adjusted model probability ≥ 55% is published as a
-forecast graded A (≥75%), B (65–74%) or C (55–64%). Forecasts hit by a
-contradiction flag are downgraded to C (never silently averaged).
+Exactly ONE forecast is published per market category (match outcome, BTTS,
+total goals, one team total per team, corners, cards, shots, goal kicks):
+within a category the highest grade wins, ties broken by probability.
+Publication threshold 55%; grades A ≥75%, B 65–74%, C 55–64%. Forecasts hit
+by a contradiction flag are downgraded to C (never silently averaged).
 """
 
 from __future__ import annotations
@@ -11,6 +13,8 @@ import hashlib
 import json
 
 from olise import config
+
+_GRADE_RANK = {"A": 3, "B": 2, "C": 1}
 
 
 def grade_for(p: float) -> str | None:
@@ -43,6 +47,11 @@ def canonical_forecasts_json(forecasts: list[dict]) -> str:
     return json.dumps(slim, sort_keys=True, separators=(",", ":"))
 
 
+def _wdl(form: dict) -> str:
+    r = [m["result"] for m in form["matches"]]
+    return (f"W{r.count('W')} D{r.count('D')} L{r.count('L')}")
+
+
 def build_forecasts(dataset: dict, engine: dict, factors: list[dict]) -> list[dict]:
     home = dataset["home"]["name"]
     away = dataset["away"]["name"]
@@ -50,57 +59,80 @@ def build_forecasts(dataset: dict, engine: dict, factors: list[dict]) -> list[di
     af = dataset["away"]["form"]
     adj = engine["goals_adj"]
     contradicted = {(c["market"], c["selection"]) for c in engine["contradictions"]}
-    factor_notes = [f["factor"] for f in factors]
 
-    form_driver = (f"{home} last-5: {hf['scored_avg']} scored / "
-                   f"{hf['conceded_avg']} conceded per match; {away} last-5: "
-                   f"{af['scored_avg']} scored / {af['conceded_avg']} conceded")
-    lam_driver = (f"Model expected goals: {engine['lambdas']['adj_home']} "
-                  f"({home}) vs {engine['lambdas']['adj_away']} ({away})")
-
-    out = []
-
-    def add(market, selection, p, extra_drivers=(), include_form=False):
+    def candidate(market, selection, p, driver, min_p=config.PUBLISH_THRESHOLD):
+        if p < min_p:
+            return None
         g = grade_for(p)
         if g is None:
-            return
+            return None
         contradiction = (market, selection) in contradicted
         if contradiction:
             g = "C"
-        drivers = list(extra_drivers) if extra_drivers else [lam_driver]
-        if include_form:
-            drivers.insert(0, form_driver)
-        drivers += [f"Context: {n}" for n in factor_notes[:1]]
-        out.append({
+        return {
             "market": market, "selection": selection,
             "model_probability": round(p, 4), "grade": g,
-            "drivers": drivers[:5],
-            "contradiction": contradiction,
-        })
+            "drivers": [driver], "contradiction": contradiction,
+        }
 
-    mr = adj["match_result"]
-    add("Match result (1X2)", f"{home} win", mr["home"], include_form=True)
-    add("Match result (1X2)", "Draw", mr["draw"], include_form=True)
-    add("Match result (1X2)", f"{away} win", mr["away"], include_form=True)
+    def pick(cands):
+        cands = [c for c in cands if c]
+        if not cands:
+            return None
+        return max(cands, key=lambda c: (_GRADE_RANK[c["grade"]],
+                                         c["model_probability"]))
 
-    dc = adj["double_chance"]
-    add("Double chance", f"{home} or draw", dc["1X"], include_form=True)
-    add("Double chance", f"{home} or {away}", dc["12"], include_form=True)
-    add("Double chance", f"Draw or {away}", dc["X2"], include_form=True)
+    combined_goals = round((hf["scored_avg"] + hf["conceded_avg"]
+                            + af["scored_avg"] + af["conceded_avg"]) / 2, 1)
+    both_scored = sum(
+        1 for m in hf["matches"] + af["matches"]
+        if all(int(x) > 0 for x in m["score"].split("-")))
+    n_matches = len(hf["matches"]) + len(af["matches"])
 
-    add("Both teams to score", "Yes", adj["btts"]["yes"])
-    add("Both teams to score", "No", adj["btts"]["no"])
+    out = []
 
-    for line, probs in adj["total_goals"].items():
-        add("Total goals", f"Over {line}", probs["over"])
-        add("Total goals", f"Under {line}", probs["under"])
+    # --- match outcome: best of 1X2 / double chance -----------------------
+    outcome_driver = (f"Form (last 5): {home} {_wdl(hf)}, {away} {_wdl(af)}")
+    mr, dc = adj["match_result"], adj["double_chance"]
+    out.append(pick([
+        candidate("Match result (1X2)", f"{home} win", mr["home"], outcome_driver),
+        candidate("Match result (1X2)", "Draw", mr["draw"], outcome_driver),
+        candidate("Match result (1X2)", f"{away} win", mr["away"], outcome_driver),
+        candidate("Double chance", f"{home} or draw", dc["1X"], outcome_driver),
+        candidate("Double chance", f"{home} or {away}", dc["12"], outcome_driver),
+        candidate("Double chance", f"Draw or {away}", dc["X2"], outcome_driver),
+    ]))
 
+    # --- BTTS --------------------------------------------------------------
+    btts_driver = (f"Both sides scored in {both_scored} of {n_matches} "
+                   f"combined recent matches")
+    out.append(pick([
+        candidate("Both teams to score", "Yes", adj["btts"]["yes"], btts_driver),
+        candidate("Both teams to score", "No", adj["btts"]["no"], btts_driver),
+    ]))
+
+    # --- total goals ---------------------------------------------------------
+    tg_driver = (f"Average combined goals {combined_goals:.1f} across both "
+                 f"teams' last 5")
+    out.append(pick([
+        candidate("Total goals", f"{side} {line}", probs[side.lower()], tg_driver)
+        for line, probs in adj["total_goals"].items()
+        for side in ("Over", "Under")
+    ]))
+
+    # --- team totals (one per team, only if ≥65%) --------------------------
     tt = adj["team_totals"]
-    add("Team total goals", f"{home} over 0.5", tt["home_over_0.5"])
-    add("Team total goals", f"{home} over 1.5", tt["home_over_1.5"])
-    add("Team total goals", f"{away} over 0.5", tt["away_over_0.5"])
-    add("Team total goals", f"{away} over 1.5", tt["away_over_1.5"])
+    for team, form, keys in ((home, hf, ("home_over_0.5", "home_over_1.5")),
+                             (away, af, ("away_over_0.5", "away_over_1.5"))):
+        driver = f"{team} scored {form['scored_avg']} per match over the last 5"
+        out.append(pick([
+            candidate("Team total goals",
+                      f"{team} over {k.rsplit('_', 1)[1]}", tt[k], driver,
+                      min_p=config.GRADE_B)
+            for k in keys
+        ]))
 
+    # --- counts: corners / cards / shots ------------------------------------
     for name, label, lines, unit in (
         ("corners", "Corners", config.CORNER_LINES, "corners"),
         ("cards", "Cards", config.CARD_LINES, "cards"),
@@ -109,24 +141,26 @@ def build_forecasts(dataset: dict, engine: dict, factors: list[dict]) -> list[di
         blk = engine["counts"][name]
         if not blk.get("available") or "adj" not in blk:
             continue
-        exp_driver = (f"Combined expected {unit}: {blk['expected_adj']} "
-                      f"(raw {blk['expected_raw']})")
-        for line in lines:
-            probs = blk["adj"]["lines"][line]
-            add(label, f"Over {line}", probs["over"], [exp_driver])
-            add(label, f"Under {line}", probs["under"], [exp_driver])
+        driver = (f"Combined expected {unit} {blk['expected_adj']} "
+                  f"from last-5 averages")
+        out.append(pick([
+            candidate(label, f"{side} {line}",
+                      blk["adj"]["lines"][line][side.lower()], driver)
+            for line in lines for side in ("Over", "Under")
+        ]))
 
+    # --- goal kicks -----------------------------------------------------------
     gk = engine["counts"]["goal_kicks"]
     if gk.get("available"):
         lo, hi = gk["range"]
-        label = f"{lo}–{hi} total goal kicks"
-        drivers = [f"Combined expected goal kicks: {gk['expected']}"]
+        driver = f"Combined expected goal kicks {gk['expected']}"
         if gk["estimated"]:
-            drivers.append("Estimated from correlated statistics "
-                           "(opponent shots off target + goalkeeper saves)")
-        add("Goal kicks (total range)", label, gk["coverage"], drivers)
+            driver += " (estimated from correlated statistics)"
+        out.append(candidate("Goal kicks (total range)",
+                             f"{lo}–{hi} total goal kicks",
+                             gk["coverage"], driver))
 
-    return out
+    return [f for f in out if f]
 
 
 def build_summary(dataset: dict, engine: dict, forecasts: list[dict],
@@ -146,8 +180,8 @@ def build_summary(dataset: dict, engine: dict, forecasts: list[dict],
         f"last-five attacking and defensive output.",
         f"The most probable outcome is {lead[0]} at {lead[1]*100:.0f}% model "
         f"probability.",
-        f"{len(forecasts)} forecasts met the 55% publication threshold, "
-        f"including {n_a} at grade A (≥75%).",
+        f"{len(forecasts)} market categories cleared the 55% publication "
+        f"threshold, {n_a} of them at grade A (≥75%).",
     ]
     if engine["contradictions"]:
         sentences.append(

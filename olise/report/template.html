@@ -3,51 +3,55 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: A4; margin: 18mm 15mm; @bottom-center { content: "Olise AI — statistical research for informational purposes. Not financial advice. Page " counter(page) " / " counter(pages); font-size: 7.5pt; color: #8a8f98; } }
-  body { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; color: #1c2430; font-size: 9.5pt; line-height: 1.45; }
-  h1 { font-size: 20pt; margin: 0 0 2mm; letter-spacing: -0.5px; }
-  h2 { font-size: 12pt; margin: 7mm 0 2.5mm; color: #0b3d66; border-bottom: 1.5px solid #0b3d66; padding-bottom: 1mm; }
-  .cover { background: #0b3d66; color: #fff; border-radius: 4mm; padding: 8mm; margin-bottom: 6mm; }
-  .cover .meta { font-size: 9pt; opacity: .92; margin-top: 2mm; }
-  .cover .brand { font-size: 9pt; text-transform: uppercase; letter-spacing: 2px; opacity: .8; }
-  .badge { display: inline-block; padding: 1mm 3mm; border-radius: 2mm; font-weight: bold; font-size: 8.5pt; letter-spacing: 1px; }
-  .badge.final { background: #1f9d55; color: #fff; }
-  .badge.provisional { background: #e2a300; color: #fff; }
-  table { border-collapse: collapse; width: 100%; margin: 2mm 0; }
-  th, td { border: 0.5pt solid #c8cfd8; padding: 1.2mm 2mm; text-align: left; }
-  th { background: #eef2f7; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .5px; color: #33414f; }
+  @page { size: A4; margin: 18mm 16mm; @bottom-center { content: "Olise AI — statistical research for informational purposes. Not financial advice. Page " counter(page) " / " counter(pages); font-size: 7.5pt; color: #777; } }
+  body { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; color: #000; background: #fff; font-size: 9.5pt; line-height: 1.5; }
+  .masthead { border-bottom: 2.5pt solid #000; padding-bottom: 3mm; margin-bottom: 5mm; }
+  .masthead .brand { font-size: 13pt; font-weight: bold; letter-spacing: 4px; text-transform: uppercase; }
+  .masthead .tagline { font-size: 7.5pt; letter-spacing: 2px; text-transform: uppercase; color: #555; margin-top: 1mm; }
+  h1 { font-size: 22pt; margin: 6mm 0 3mm; letter-spacing: -0.5px; font-weight: bold; }
+  .meta { font-size: 9pt; color: #333; line-height: 1.7; margin-bottom: 6mm; }
+  h2 { font-size: 10.5pt; margin: 8mm 0 3mm; text-transform: uppercase; letter-spacing: 1.5px; border-top: 1pt solid #000; padding-top: 2.5mm; }
+  .chip { display: inline-block; padding: 0.5mm 2.5mm; font-weight: bold; font-size: 8pt; letter-spacing: 1px; }
+  .chip.solid { background: #000; color: #fff; }
+  .chip.outline { border: 1pt solid #000; color: #000; }
+  table { border-collapse: collapse; width: 100%; margin: 2.5mm 0; }
+  th, td { border: 0.25pt solid #bbb; padding: 1.2mm 2mm; text-align: left; }
+  th { font-size: 8pt; text-transform: uppercase; letter-spacing: .5px; font-weight: bold; }
   td.num, th.num { text-align: right; }
-  .heat td { text-align: center; width: 9mm; font-size: 8pt; border: 0.5pt solid #dfe5ec; }
-  .heat th { text-align: center; background: #f6f8fa; }
-  .grade { font-weight: bold; text-align: center; border-radius: 1.5mm; }
-  .grade-A { color: #1f9d55; } .grade-B { color: #0b6bcb; } .grade-C { color: #b07d00; }
-  .flag { background: #fdf3f3; border: 1px solid #e3b8b8; border-radius: 2mm; padding: 3mm; margin: 2mm 0; }
-  .note { color: #5a6570; font-size: 8.5pt; }
-  .summary { background: #f2f6fb; border-left: 3px solid #0b3d66; padding: 3mm 4mm; }
+  .heat td { text-align: center; width: 9mm; font-size: 8pt; border: 0.25pt solid #ccc; }
+  .heat th { text-align: center; }
+  .grade { text-align: center; }
+  .flag { border: 1pt solid #000; padding: 3mm; margin: 2mm 0; }
+  .note { color: #555; font-size: 8.5pt; }
+  .summary { border-left: 2.5pt solid #000; padding: 1mm 0 1mm 4mm; }
   ul { margin: 1mm 0 1mm 5mm; padding: 0; }
   li { margin-bottom: 1mm; }
 </style>
 </head>
 <body>
 
-<div class="cover">
-  <div class="brand">Olise AI · Match Intelligence</div>
-  <h1>{{ home }} vs {{ away }}</h1>
-  <div class="meta">
-    {{ competition }} — {{ stage }}<br>
-    Kickoff: {{ kickoff_utc }} UTC {% if venue %}· {{ venue }}{% if city %}, {{ city }}{% endif %}{% endif %}<br>
-    Report ID: {{ report_id }} &nbsp;·&nbsp;
-    <span class="badge {{ status }}">{{ status | upper }}</span>
-  </div>
-  <div class="meta">Onchain commitment: the keccak-256 hash of this PDF plus its canonical
-  forecast set is recorded on X Layer testnet before kickoff. Verify at
-  <b>GET /verify/{{ report_id }}</b>.</div>
+<div class="masthead">
+  <div class="brand">Olise AI &middot; Match Intelligence</div>
+  <div class="tagline">Independent statistical research &middot; committed onchain before kickoff</div>
 </div>
 
-<h2>1. Executive summary</h2>
+<h1>{{ home }} vs {{ away }}</h1>
+<div class="meta">
+  {{ competition }} — {{ stage }}<br>
+  Kickoff: {{ kickoff_utc }} UTC {% if venue %}&middot; {{ venue }}{% if city %}, {{ city }}{% endif %}{% endif %}{% if referee %} &middot; Referee: {{ referee }}{% endif %}<br>
+  Report ID: {{ report_id }} &nbsp;
+  <span class="chip {{ 'solid' if status == 'final' else 'outline' }}">{{ status | upper }}</span><br>
+  <span class="note">The keccak-256 hash of this PDF plus its canonical forecast set is recorded on
+  X Layer testnet before kickoff. Verify at <b>GET /verify/{{ report_id }}</b>.</span>
+</div>
+
+{% set ns = namespace(n=0) %}
+{% macro sec(title) %}{% set ns.n = ns.n + 1 %}<h2>{{ ns.n }}. {{ title }}</h2>{% endmacro %}
+
+{{ sec("Executive summary") }}
 <p class="summary">{{ summary }}</p>
 
-<h2>2. Recent form (last {{ form_n }})</h2>
+{{ sec("Recent form (last %d)" | format(form_n)) }}
 {% for side in [home_block, away_block] %}
 <p><b>{{ side.name }}</b> — scored {{ side.form.scored_avg }} / conceded {{ side.form.conceded_avg }} per match</p>
 <table>
@@ -64,17 +68,17 @@
 </table>
 {% endfor %}
 
-<h2>3. Head-to-head (last {{ h2h | length }})</h2>
 {% if h2h %}
+{{ sec("Head-to-head (last %d)" | format(h2h | length)) }}
 <table>
   <tr><th>Date</th><th>Fixture</th><th>Score</th><th>Competition</th></tr>
   {% for m in h2h %}
   <tr><td>{{ m.date }}</td><td>{{ m.home }} vs {{ m.away }}</td><td>{{ m.score }}</td><td>{{ m.competition }}</td></tr>
   {% endfor %}
 </table>
-{% else %}<p class="note">No prior meetings found in the data window.</p>{% endif %}
+{% endif %}
 
-<h2>4. Team news</h2>
+{{ sec("Team news") }}
 {% if injuries %}
 <table>
   <tr><th>Team</th><th>Player</th><th>Status</th><th>Reason</th></tr>
@@ -82,7 +86,7 @@
   <tr><td>{{ i.team }}</td><td>{{ i.player }}</td><td>{{ i.type or "—" }}</td><td>{{ i.reason or "—" }}</td></tr>
   {% endfor %}
 </table>
-{% else %}<p class="note">No confirmed injury or suspension data returned by the data provider for this fixture.</p>{% endif %}
+{% else %}<p class="note">No confirmed injury or suspension data for this fixture.</p>{% endif %}
 {% if lineups.available %}
   {% for t in lineups.teams %}
   <p><b>{{ t.team }}</b> ({{ t.formation or "formation TBC" }}{% if t.coach %}, coach {{ t.coach }}{% endif %}):
@@ -93,23 +97,25 @@
 reissued as FINAL when lineups land.</p>
 {% endif %}
 
-<h2>5. Referee profile</h2>
-{% if referee %}
-<p>Appointed referee: <b>{{ referee }}</b>.{% if not referee_stats %} Recent card-count data for this
-official was not retrievable from the data provider, so no quantitative referee adjustment is applied.{% endif %}</p>
-{% else %}<p class="note">Referee not yet announced.</p>{% endif %}
+{% if referee_stats %}
+{{ sec("Referee profile") }}
+<p>Appointed referee: <b>{{ referee }}</b>.</p>
+{% endif %}
 
-<h2>6. Current context</h2>
 {% if factors %}
+{{ sec("Current context") }}
 <ul>
   {% for f in factors %}
   <li><b>{{ f.factor }}</b> <span class="note">({{ f.direction | replace("_", " ") }},
   magnitude {{ f.magnitude }}) — {{ f.source_note }}</span></li>
   {% endfor %}
 </ul>
-{% else %}<p class="note">{{ research_note }}</p>{% endif %}
+{% elif research_note %}
+{{ sec("Current context") }}
+<p class="note">{{ research_note }}</p>
+{% endif %}
 
-<h2>7. Quantitative model</h2>
+{{ sec("Quantitative model") }}
 <p>Baseline goals per team in sample: <b>{{ engine.baseline }}</b>.
 Expected goals — raw model: {{ home }} <b>{{ engine.lambdas.raw_home }}</b>,
 {{ away }} <b>{{ engine.lambdas.raw_away }}</b>{% if adjusted %};
@@ -123,34 +129,37 @@ after bounded context adjustments: {{ home }} <b>{{ engine.lambdas.adj_home }}</
   <tr><th>{{ h }}</th>
   {% for a in range(6) %}
     {% set p = matrix[h][a] %}
-    <td style="background: rgba(11,61,102,{{ '%.2f' | format((p / matrix_max * 0.85) if matrix_max else 0) }});
-               color: {{ '#fff' if matrix_max and p / matrix_max > 0.55 else '#1c2430' }};">
+    <td style="background: rgba(0,0,0,{{ '%.2f' | format((p / matrix_max * 0.9) if matrix_max else 0) }});
+               color: {{ '#fff' if matrix_max and p / matrix_max > 0.5 else '#000' }};">
       {{ '%.1f' | format(p * 100) }}%</td>
   {% endfor %}</tr>
   {% endfor %}
 </table>
 <p class="note">Each cell is the modelled probability of that exact scoreline from two independent
-Poisson distributions. Every forecast below is derived by summing the relevant regions of this
-matrix (e.g. "Over 2.5 goals" sums all cells where total goals ≥ 3); count markets (corners,
-cards, shots, goal kicks) use the same Poisson projection on their combined expected totals.</p>
+Poisson distributions (darker = more probable). Every forecast below is derived by summing the
+relevant regions of this matrix (e.g. "Over 2.5 goals" sums all cells where total goals ≥ 3);
+count markets (corners, cards, shots, goal kicks) use the same Poisson projection on their
+combined expected totals.</p>
 <p>Most likely scorelines: {% for s in top_scores %}<b>{{ s.score }}</b> ({{ '%.1f' | format(s.probability * 100) }}%){% if not loop.last %}, {% endif %}{% endfor %}.</p>
 
-<h2>8. Forecasts</h2>
+{{ sec("Forecasts") }}
 <table>
-  <tr><th>Market</th><th>Selection</th><th class="num">Model probability</th><th>Confidence</th><th>Key drivers</th></tr>
+  <tr><th>Market</th><th>Selection</th><th class="num">Model probability</th><th>Confidence</th><th>Key driver</th></tr>
   {% for f in forecasts %}
   <tr>
     <td>{{ f.market }}</td><td>{{ f.selection }}</td>
     <td class="num">{{ '%.1f' | format(f.model_probability * 100) }}%</td>
-    <td class="grade grade-{{ f.grade }}">{{ f.grade }}{% if f.contradiction %} ⚑{% endif %}</td>
+    <td class="grade">{% if f.grade == 'A' %}<span class="chip solid">A</span>{% elif f.grade == 'B' %}<span class="chip outline">B</span>{% else %}C{% endif %}{% if f.contradiction %} ⚑{% endif %}</td>
     <td class="note">{{ f.drivers | join("; ") }}</td>
   </tr>
   {% endfor %}
 </table>
-<p class="note">Grades: A ≥ 75% · B 65–74% · C 55–64% model probability. Markets below 55% are not published. ⚑ = contradiction flag (see below).</p>
+<p class="note">One forecast per market category — the strongest by grade, then probability.
+Grades: A ≥ 75% · B 65–74% · C 55–64% model probability. Categories below 55% are not published.
+{% if contradictions %}⚑ = contradiction flag (see below).{% endif %}</p>
 
-<h2>9. Contradiction flags</h2>
 {% if contradictions %}
+{{ sec("Contradiction flags") }}
 {% for c in contradictions %}
 <div class="flag">
   <b>{{ c.market }} — {{ c.selection }}</b>: raw model {{ '%.1f' | format(c.raw_probability * 100) }}%
@@ -158,9 +167,9 @@ cards, shots, goal kicks) use the same Poisson projection on their combined expe
   This forecast is downgraded to confidence C rather than averaged.
 </div>
 {% endfor %}
-{% else %}<p class="note">No contradictions between the raw quantitative model and context adjustments.</p>{% endif %}
+{% endif %}
 
-<h2>10. Methodology</h2>
+{{ sec("Methodology") }}
 <p class="note">Expected goals derive from each team's last-{{ form_n }} scoring and concession
 rates normalised against the sample baseline, projected through independent Poisson
 distributions into a full scoreline matrix. Count markets project combined expected totals
