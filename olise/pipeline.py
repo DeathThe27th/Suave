@@ -54,12 +54,15 @@ def _response_from_report(rec: dict, forecasts: list[dict], cached: bool) -> dic
 
 
 async def analyze(store, af, chain, home: str, away: str,
-                  date: str | None = None, allow_started: bool = False) -> dict:
+                  date: str | None = None, allow_started: bool = False,
+                  force: bool = False) -> dict:
     async with _analyze_lock:
-        return await _analyze(store, af, chain, home, away, date, allow_started)
+        return await _analyze(store, af, chain, home, away, date,
+                              allow_started, force)
 
 
-async def _analyze(store, af, chain, home, away, date, allow_started) -> dict:
+async def _analyze(store, af, chain, home, away, date, allow_started,
+                   force=False) -> dict:
     fixture = await af.resolve_fixture(home, away, date)
     fx = fixture["fixture"]
     kickoff = datetime.fromisoformat(fx["date"])
@@ -86,8 +89,9 @@ async def _analyze(store, af, chain, home, away, date, allow_started) -> dict:
     ih = input_hash(dataset, factors)
 
     # consistency cache: same fixture + same normalized input → same report
+    # (admin `force` bypasses it and issues a new version instead)
     existing = store.find_reports_by_fixture(dataset["fixture"]["id"])
-    for rec in existing:
+    for rec in existing if not force else []:
         if rec.get("input_hash") == ih:
             if rec.get("commit_hash") and not rec.get("tx_hash"):
                 # earlier commit tx failed — heal it, never re-render

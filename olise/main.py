@@ -63,6 +63,8 @@ class AnalyzeRequest(BaseModel):
     home: str = Field(..., min_length=2, examples=["Spain"])
     away: str = Field(..., min_length=2, examples=["Belgium"])
     date: str | None = Field(None, description="Optional YYYY-MM-DD kickoff date")
+    force: bool = Field(False, description="Admin only: bypass the consistency "
+                        "cache and issue a new report version")
 
 
 def _err(status: int, code: str, message: str) -> JSONResponse:
@@ -74,13 +76,13 @@ def _err(status: int, code: str, message: str) -> JSONResponse:
 async def analyze(req: AnalyzeRequest,
                   x_admin_token: str | None = Header(default=None)):
     """Generate (or return the cached) research report for a fixture."""
-    allow_started = bool(config.ADMIN_TOKEN
-                         and x_admin_token == config.ADMIN_TOKEN)
+    is_admin = bool(config.ADMIN_TOKEN
+                    and x_admin_token == config.ADMIN_TOKEN)
     try:
         return await pipeline.analyze(
             state.store, state.af, state.chain,
             req.home.strip(), req.away.strip(), req.date,
-            allow_started=allow_started)
+            allow_started=is_admin, force=req.force and is_admin)
     except FixtureNotFound as e:
         return _err(404, "fixture_not_found", str(e))
     except pipeline.MatchAlreadyStarted as e:
