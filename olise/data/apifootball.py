@@ -378,4 +378,9 @@ class ApiFootball:
     async def status(self) -> dict:
         r = await self.http.get("/status")
         r.raise_for_status()
-        return r.json().get("response", {})
+        data = r.json()
+        errors = data.get("errors")
+        if errors and (not isinstance(errors, list) or len(errors) > 0):
+            # e.g. account suspended: response is [] and errors carries why
+            raise ApiFootballError(json.dumps(errors))
+        return data.get("response", {})
