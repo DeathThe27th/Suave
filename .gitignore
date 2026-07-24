@@ -1,4 +1,6 @@
 .env
+# Deploy config holds your email + heartbeat URL — never commit it.
+/deploy/deploy.conf
 __pycache__/
 *.pyc
 .venv/

@@ -1,0 +1,13 @@
+# Suave deploy config — copy to deploy.conf and fill in. Consumed by bootstrap.sh.
+# deploy.conf is git-ignored; never commit real values.
+
+# The domain that points at this VPS (A record already set — see README step 1).
+DOMAIN=suave-demo.duckdns.org
+
+# Email for Let's Encrypt expiry notices.
+LETSENCRYPT_EMAIL=you@example.com
+
+# Optional: an external uptime heartbeat URL (healthchecks.io / UptimeRobot / etc).
+# If set, the health cron pings it on every successful check so you learn about an
+# outage before OKX does (BUILD.md §3.1). Leave blank to skip.
+HEALTHCHECK_PING_URL=

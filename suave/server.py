@@ -17,7 +17,7 @@ from __future__ import annotations
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from . import payment
+from . import model, payment
 from .config import CONFIG
 from .library import list_specs
 from .pipeline import generate
@@ -64,6 +64,19 @@ async def generate_endpoint(request: Request) -> Response:
         result = generate(payload)
     except ValueError as e:  # bad brief
         return JSONResponse({"error": str(e)}, status_code=400)
+    except model.RateLimited as e:  # provider quota — tell the caller how long to wait
+        headers = {}
+        if e.retry_after_s:
+            headers["Retry-After"] = str(int(e.retry_after_s) + 1)
+        return JSONResponse(
+            {
+                "error": "rate_limited",
+                "message": str(e),
+                "retry_after_s": round(e.retry_after_s) if e.retry_after_s else None,
+            },
+            status_code=429,
+            headers=headers,
+        )
     except Exception as e:  # degrade, don't hang or 500 silently
         return JSONResponse({"error": "generation_failed", "detail": str(e)}, status_code=502)
 

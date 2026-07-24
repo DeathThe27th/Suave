@@ -1,0 +1,23 @@
+[Unit]
+Description=Suave landing-page agent (Docker)
+Documentation=https://github.com/xxvii/Suave
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+# Runs the container in the foreground so systemd owns it and journald gets the logs.
+Restart=always
+RestartSec=3
+TimeoutStartSec=0
+# The runtime env (GEMINI_API_KEY, image keys, etc.) lives OUTSIDE the repo.
+# bootstrap.sh creates /etc/suave/ and expects you to place suave.env there.
+ExecStartPre=-/usr/bin/docker rm -f suave
+ExecStart=/usr/bin/docker run --rm --name suave \
+    --env-file /etc/suave/suave.env \
+    -p 127.0.0.1:8000:8000 \
+    suave:latest
+ExecStop=/usr/bin/docker stop suave
+
+[Install]
+WantedBy=multi-user.target
