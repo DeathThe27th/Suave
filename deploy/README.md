@@ -123,9 +123,13 @@ curl -s https://suave-demo.duckdns.org/health   # must come back on its own
 | 429 from `/generate` | free-tier per-minute quota — the API returns a clean `rate_limited` JSON + `Retry-After`; wait that long, or set a different `SUAVE_MODEL` |
 | nginx won't reload | `sudo nginx -t` prints the exact line |
 
-## Not covered here (next task, not deploy)
-- **MCP endpoint:** `build_mcp()` exists but isn't mounted in `server.py`'s `__main__`,
-  so only the FastAPI routes serve today. The nginx proxy already forwards all paths
-  (buffering off, SSE-ready), so mounting the FastMCP app later needs no proxy change.
+## MCP endpoint
+The FastMCP tool is mounted at **`/mcp`** (streamable HTTP) — verified by a real client
+handshake (`generate_landing_page` lists with its params). After deploy, point the MCP
+Inspector at `https://suave-demo.duckdns.org/mcp` (BUILD.md §3.5). nginx already proxies
+it (buffering off, SSE-ready); no extra proxy config. A plain `GET /mcp/` returns 406
+(needs MCP `Accept` headers) — that's expected, not an error.
+
+## Not covered here
 - **x402 payment:** stays OFF until Task Zero (the seller-side settle path) is confirmed
   with OKX (BUILD.md §3.2).

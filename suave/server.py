@@ -4,9 +4,10 @@ Endpoints
   GET  /health         connectivity + library status (keep-warm / uptime ping)
   GET  /styles         list available library styles
   POST /generate       brief -> single self-contained HTML landing page
+  ANY  /mcp            MCP over streamable HTTP — the `generate` tool for AI clients
 
-The same `generate` capability is exposed as an MCP tool so an AI client can call it
-end-to-end (BUILD.md §3.5 pre-submit checklist). Run this module to serve both.
+The same `generate` capability is exposed as an MCP tool at /mcp so an AI client (or the
+OKX A2MCP gateway / MCP Inspector) can call it end-to-end (BUILD.md §3.5 checklist).
 
 x402: gated behind CONFIG.x402_enabled, which stays false until Task Zero is resolved
 (BUILD.md §3.2). When enabled, an unpaid /generate returns a 402 challenge.
@@ -16,13 +17,52 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastmcp import FastMCP
 
 from . import model, payment
 from .config import CONFIG
 from .library import list_specs
 from .pipeline import generate
 
-app = FastAPI(title="Suave", version="0.1.0")
+
+# --- MCP tool (FastMCP) ----------------------------------------------------------
+def build_mcp() -> FastMCP:
+    """Expose `generate` as an MCP tool so an AI client / OKX A2MCP can call it."""
+    mcp = FastMCP("Suave")
+
+    @mcp.tool()
+    def generate_landing_page(
+        product: str,
+        what_it_does: str,
+        audience: str = "",
+        tone: str = "",
+        style_id: str | None = None,
+    ) -> str:
+        """Generate a single self-contained HTML landing page with sourced design taste.
+
+        Provide the product name and what it does; optionally an audience, tone, and a
+        style_id from /styles (otherwise Suave picks a style by fit). Returns the full HTML.
+        """
+        result = generate(
+            {
+                "product": product,
+                "what_it_does": what_it_does,
+                "audience": audience,
+                "tone": tone,
+                "style_id": style_id,
+            }
+        )
+        return result.html
+
+    return mcp
+
+
+# Build the MCP app BEFORE the FastAPI app: its lifespan starts the streamable-HTTP
+# session manager, and the parent app must adopt that lifespan or MCP calls fail.
+mcp = build_mcp()
+mcp_app = mcp.http_app(path="/")
+
+app = FastAPI(title="Suave", version="0.1.0", lifespan=mcp_app.lifespan)
 
 
 @app.get("/health")
@@ -35,6 +75,7 @@ def health() -> dict:
         "library_count": len(specs),
         "vet_enabled": CONFIG.vet_enabled,
         "x402_enabled": CONFIG.x402_enabled,
+        "mcp": "/mcp",
     }
 
 
@@ -107,38 +148,9 @@ async def generate_endpoint(request: Request) -> Response:
     return HTMLResponse(result.html, headers=resp_headers)
 
 
-# --- MCP wrapper (FastMCP) -------------------------------------------------------
-# Exposes `generate` as an MCP tool so an AI client / OKX A2MCP can call it.
-def build_mcp():
-    from fastmcp import FastMCP
-
-    mcp = FastMCP("Suave")
-
-    @mcp.tool()
-    def generate_landing_page(
-        product: str,
-        what_it_does: str,
-        audience: str = "",
-        tone: str = "",
-        style_id: str | None = None,
-    ) -> str:
-        """Generate a single self-contained HTML landing page with sourced design taste.
-
-        Provide the product name and what it does; optionally an audience, tone, and a
-        style_id from /styles (otherwise Suave picks a style by fit). Returns the full HTML.
-        """
-        result = generate(
-            {
-                "product": product,
-                "what_it_does": what_it_does,
-                "audience": audience,
-                "tone": tone,
-                "style_id": style_id,
-            }
-        )
-        return result.html
-
-    return mcp
+# Mount the MCP app last so the explicit routes above take precedence. The tool is then
+# reachable over streamable HTTP at /mcp (nginx already proxies all paths, buffering off).
+app.mount("/mcp", mcp_app)
 
 
 if __name__ == "__main__":
