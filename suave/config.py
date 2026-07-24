@@ -54,6 +54,20 @@ class Config:
     x402_enabled: bool = field(default_factory=lambda: _env("SUAVE_X402_ENABLED", "false").lower() == "true")
     price_usdt: float = field(default_factory=lambda: _env_float("SUAVE_PRICE_USDT", 0.03))
 
+    # x402 challenge shape (confirmed against the OKX payments skill — see BUILD.md
+    # "Task Zero — findings"). The seller emits these in the 402; a buyer's OKX wallet
+    # signs and pays. Fill payTo/asset before enabling. Network default is X Layer.
+    x402_version: int = field(default_factory=lambda: int(_env_float("X402_VERSION", 1)))
+    x402_network: str = field(default_factory=lambda: _env("X402_NETWORK", "eip155:196"))
+    x402_asset: str = field(default_factory=lambda: _env("X402_ASSET"))  # ERC-20 (USDT) contract
+    x402_asset_decimals: int = field(default_factory=lambda: int(_env_float("X402_ASSET_DECIMALS", 6)))
+    x402_pay_to: str = field(default_factory=lambda: _env("X402_PAY_TO"))  # Suave's wallet
+    x402_resource: str = field(default_factory=lambda: _env("X402_RESOURCE"))  # this endpoint's public URL
+    # Seller-side verify/settle. STILL UNCONFIRMED — the facilitator URL (or whether the
+    # OKX A2MCP gateway settles for us) is the open half of Task Zero. Leave blank until
+    # OKX confirms; with x402 on and no facilitator, requests can't be verified and 402.
+    x402_facilitator_url: str = field(default_factory=lambda: _env("X402_FACILITATOR_URL"))
+
     def require_model(self) -> None:
         if not self.anthropic_api_key:
             raise RuntimeError("ANTHROPIC_API_KEY is not set — the model layer cannot run.")

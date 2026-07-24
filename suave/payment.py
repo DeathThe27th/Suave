@@ -1,19 +1,27 @@
-"""x402 / payment layer — TASK ZERO, still unresolved (BUILD.md §3.2).
+"""x402 seller layer — Task Zero (BUILD.md §3.2), now partly resolved.
 
-The Olise rejection told us to integrate x402 so unpaid requests return a standard 402
-challenge; the ASP docs imply the platform settles via the OKX Payment SDK automatically.
-Those two need reconciling and we will NOT build the payment layer on a guess — this is
-the exact thing that failed. Until the real spec is confirmed (ask OKX support; check
-`npx skills add okx/onchainos-skills`), CONFIG.x402_enabled stays false and every request
-is served free.
+CONFIRMED (from the local okx-agent-payments-protocol skill, which is the *buyer* side):
+a seller emits an x402 402 whose challenge a buyer decodes from the `PAYMENT-REQUIRED`
+header (v2, base64 JSON) or the body `x402Version` field (v1). Each `accepts[]` entry
+carries `scheme` / `network` / `asset` / `amount` (v2) or `maxAmountRequired` (v1) /
+`payTo`. Header names are byte-exact per the protocol: `PAYMENT-REQUIRED`, `X-PAYMENT`,
+`PAYMENT-SIGNATURE`. So `challenge()` below emits a real, spec-shaped x402 challenge.
 
-When enabled, `challenge()` returns the 402 body/headers to emit for an unpaid request,
-and `is_paid()` validates an incoming payment proof. Both are stubs pending the real spec.
+STILL OPEN (the reason x402 stays OFF by default): the *seller-side* verify/settle path.
+The buyer's OKX wallet signs and the buyer-side facilitator settles — but whether Suave
+must POST the payment proof to an x402 facilitator (`/verify`, `/settle`) itself, or the
+OKX A2MCP gateway fronts billing entirely (as the ASP docs imply), is not in the local
+skills. Confirm with OKX support before enabling. `verify()` below is written against the
+standard x402 facilitator contract and is inert until `X402_FACILITATOR_URL` is set.
 """
 
 from __future__ import annotations
 
+import base64
+import json
 from dataclasses import dataclass
+
+import httpx
 
 from .config import CONFIG
 
@@ -29,23 +37,94 @@ def enabled() -> bool:
     return CONFIG.x402_enabled
 
 
-def is_paid(headers: dict[str, str]) -> bool:
-    """Validate a payment proof from the request. STUB — real check pending Task Zero."""
-    if not CONFIG.x402_enabled:
-        return True
-    # TODO(task-zero): verify the X-PAYMENT / PAYMENT-SIGNATURE proof against the OKX
-    # Payment SDK / x402 spec before trusting it. Do not guess the scheme.
-    return bool(headers.get("x-payment") or headers.get("payment-signature"))
+def _atomic_price() -> str:
+    """Price in the asset's base units, as the string x402 expects."""
+    return str(int(round(CONFIG.price_usdt * (10**CONFIG.x402_asset_decimals))))
+
+
+def _requirements() -> dict:
+    """One x402 PaymentRequirements entry (the `accepts[]` element)."""
+    amount = _atomic_price()
+    return {
+        "scheme": "exact",
+        "network": CONFIG.x402_network,
+        "asset": CONFIG.x402_asset,
+        "payTo": CONFIG.x402_pay_to,
+        "amount": amount,  # v2 field
+        "maxAmountRequired": amount,  # v1 field — emit both for buyer compatibility
+        "resource": CONFIG.x402_resource,
+        "description": "Suave — one self-contained HTML landing page",
+        "mimeType": "text/html",
+        "maxTimeoutSeconds": int(CONFIG.call_budget_s) + 30,
+    }
 
 
 def challenge() -> Challenge:
-    """The 402 body to return for an unpaid request. Shape is a placeholder."""
+    """The 402 to return for an unpaid request. Spec-shaped x402 (v1 body + v2 header)."""
+    body = {
+        "x402Version": CONFIG.x402_version,
+        "accepts": [_requirements()],
+        "error": "payment required",
+    }
+    header = base64.b64encode(json.dumps(body).encode()).decode()
     return Challenge(
         status=402,
-        headers={"WWW-Authenticate": "Payment"},
-        body={
-            "error": "payment_required",
-            "price_usdt": CONFIG.price_usdt,
-            "note": "x402 scheme pending confirmation with OKX (Task Zero).",
-        },
+        headers={"PAYMENT-REQUIRED": header},  # v2 delivery; body carries v1
+        body=body,
     )
+
+
+def _payment_proof(headers: dict[str, str]) -> str | None:
+    return headers.get("x-payment") or headers.get("payment-signature")
+
+
+def is_paid(headers: dict[str, str]) -> bool:
+    """True if the request carries a payment proof this seller can verify.
+
+    With a facilitator configured, verify the proof against it (standard x402). Without
+    one, we cannot verify a seller-side payment — so we refuse (return False) rather than
+    trust an unverified header. This is the open half of Task Zero; x402 stays off until
+    the facilitator (or gateway) contract is confirmed with OKX.
+    """
+    if not CONFIG.x402_enabled:
+        return True
+    proof = _payment_proof(headers)
+    if not proof:
+        return False
+    if not CONFIG.x402_facilitator_url:
+        return False  # cannot verify without the (unconfirmed) facilitator/gateway
+    return verify(proof)
+
+
+def verify(proof: str) -> bool:
+    """POST the proof + requirements to the x402 facilitator's /verify. Never raises."""
+    try:
+        r = httpx.post(
+            f"{CONFIG.x402_facilitator_url.rstrip('/')}/verify",
+            json={"x402Version": CONFIG.x402_version, "paymentPayload": proof, "paymentRequirements": _requirements()},
+            timeout=CONFIG.image_timeout_s,
+        )
+        r.raise_for_status()
+        return bool(r.json().get("isValid"))
+    except Exception:
+        return False
+
+
+def settle(proof: str) -> dict | None:
+    """POST to the facilitator's /settle after serving. Returns the settlement, or None.
+
+    x402 flow: verify -> serve -> settle -> return a PAYMENT-RESPONSE header. Inert until
+    the facilitator contract is confirmed.
+    """
+    if not (CONFIG.x402_enabled and CONFIG.x402_facilitator_url):
+        return None
+    try:
+        r = httpx.post(
+            f"{CONFIG.x402_facilitator_url.rstrip('/')}/settle",
+            json={"x402Version": CONFIG.x402_version, "paymentPayload": proof, "paymentRequirements": _requirements()},
+            timeout=CONFIG.image_timeout_s,
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return None

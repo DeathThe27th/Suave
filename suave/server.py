@@ -50,7 +50,8 @@ def styles() -> dict:
 
 @app.post("/generate")
 async def generate_endpoint(request: Request) -> Response:
-    if payment.enabled() and not payment.is_paid({k.lower(): v for k, v in request.headers.items()}):
+    headers_lower = {k.lower(): v for k, v in request.headers.items()}
+    if payment.enabled() and not payment.is_paid(headers_lower):
         ch = payment.challenge()
         return JSONResponse(ch.body, status_code=ch.status, headers=ch.headers)
 
@@ -66,6 +67,17 @@ async def generate_endpoint(request: Request) -> Response:
     except Exception as e:  # degrade, don't hang or 500 silently
         return JSONResponse({"error": "generation_failed", "detail": str(e)}, status_code=502)
 
+    # x402 flow: verify (above) -> serve -> settle -> return PAYMENT-RESPONSE.
+    resp_headers: dict[str, str] = {}
+    if payment.enabled():
+        proof = headers_lower.get("x-payment") or headers_lower.get("payment-signature")
+        settlement = payment.settle(proof) if proof else None
+        if settlement is not None:
+            import base64
+            import json as _json
+
+            resp_headers["PAYMENT-RESPONSE"] = base64.b64encode(_json.dumps(settlement).encode()).decode()
+
     fmt = str(payload.get("format", "html")).lower()
     if fmt == "json":
         return JSONResponse(
@@ -76,9 +88,10 @@ async def generate_endpoint(request: Request) -> Response:
                 "elapsed_s": result.elapsed_s,
                 "notes": result.notes,
                 "html": result.html,
-            }
+            },
+            headers=resp_headers,
         )
-    return HTMLResponse(result.html)
+    return HTMLResponse(result.html, headers=resp_headers)
 
 
 # --- MCP wrapper (FastMCP) -------------------------------------------------------

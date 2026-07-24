@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .config import CONFIG
 
-_FIELD_RE = re.compile(r"^\s*-\s*\*\*(?P<key>[a-z_]+):\*\*\s*(?P<val>.+?)\s*$", re.IGNORECASE)
+_FIELD_RE = re.compile(r"^\s*-\s*\*\*(?P<key>[a-z][a-z_-]*):\*\*\s*(?P<val>.+?)\s*$", re.IGNORECASE)
 
 
 @dataclass(frozen=True)

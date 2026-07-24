@@ -183,6 +183,33 @@ npx skills add okx/onchainos-skills --yes -g
 
 Do not build the payment layer on a guess. This is the exact thing that failed.
 
+#### Task Zero — findings (2026-07-24)
+
+Read the local `okx/onchainos-skills` package (already vendored in `.agents/skills/`).
+The `okx-agent-payments-protocol` skill is the **buyer/client** side, but it pins down
+the wire contract a **seller** must satisfy:
+
+- A seller signals payment by returning **HTTP 402** whose challenge the buyer decodes
+  from one of: the **`PAYMENT-REQUIRED`** header (x402 v2, base64 JSON), the body field
+  **`x402Version`** (x402 v1, plain JSON), or **`WWW-Authenticate: Payment`** (channels).
+- Each `accepts[]` entry carries `scheme` (`exact` for one-shot), `network`, `asset`
+  (ERC-20 contract), `amount` (v2) / `maxAmountRequired` (v1), and `payTo`.
+- Header names are byte-exact: `PAYMENT-REQUIRED`, `X-PAYMENT`, `PAYMENT-SIGNATURE`.
+- **Reconciliation:** the "OKX Payment SDK settles automatically" line is the *buyer's*
+  wallet+facilitator doing the signing/settlement. The seller genuinely does emit the
+  402. So the rejection ("integrate x402 so unpaid requests 402") and the ASP docs are
+  not in conflict — the seller challenges, the buyer's stack pays.
+
+Implemented in `suave/payment.py`: `challenge()` now emits a real, spec-shaped x402
+challenge (v1 body + v2 header). **Still off by default.**
+
+**Still open (the reason x402 stays OFF):** the *seller-side* verify/settle path. Does
+Suave POST the payment proof to an x402 facilitator (`/verify`, `/settle`), or does the
+OKX A2MCP gateway front billing entirely for listed endpoints? The local skills don't
+say. `verify()`/`settle()` are written against the standard x402 facilitator contract
+and stay inert until `X402_FACILITATOR_URL` (or a gateway answer) is confirmed with OKX
+support. **This one question is all that's left of Task Zero.**
+
 ### 3.3 Timeouts
 
 - Hard timeout budget per call, well under whatever OKX's tester tolerates
