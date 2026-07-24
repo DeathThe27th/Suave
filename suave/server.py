@@ -31,7 +31,7 @@ def health() -> dict:
     return {
         "status": "ok",
         "model": CONFIG.model,
-        "model_key_set": bool(CONFIG.anthropic_api_key),
+        "model_key_set": bool(CONFIG.gemini_api_key),
         "library_count": len(specs),
         "vet_enabled": CONFIG.vet_enabled,
         "x402_enabled": CONFIG.x402_enabled,

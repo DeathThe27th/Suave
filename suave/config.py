@@ -27,9 +27,11 @@ def _env_float(name: str, default: float) -> float:
 
 @dataclass(frozen=True)
 class Config:
-    # Model — default to the latest capable Claude (see BUILD.md §4).
-    anthropic_api_key: str = field(default_factory=lambda: _env("ANTHROPIC_API_KEY"))
-    model: str = field(default_factory=lambda: _env("SUAVE_MODEL", "claude-opus-4-8"))
+    # Model — Google Gemini free-tier key (not Anthropic); see BUILD.md §4.
+    gemini_api_key: str = field(default_factory=lambda: _env("GEMINI_API_KEY"))
+    # gemini-3.1-flash-lite: the model this free-tier key actually has quota on
+    # (the 2.x line is granted 0 free quota; the 2.5 line is 404 for new keys).
+    model: str = field(default_factory=lambda: _env("SUAVE_MODEL", "gemini-3.1-flash-lite"))
 
     # Images — server-side API, never hotlink-scrape (BUILD.md §2).
     unsplash_access_key: str = field(default_factory=lambda: _env("UNSPLASH_ACCESS_KEY"))
@@ -69,8 +71,8 @@ class Config:
     x402_facilitator_url: str = field(default_factory=lambda: _env("X402_FACILITATOR_URL"))
 
     def require_model(self) -> None:
-        if not self.anthropic_api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set — the model layer cannot run.")
+        if not self.gemini_api_key:
+            raise RuntimeError("GEMINI_API_KEY is not set — the model layer cannot run.")
 
 
 CONFIG = Config()

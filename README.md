@@ -60,7 +60,7 @@ rather than hanging — timeouts are how the previous agent died.
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # set ANTHROPIC_API_KEY (image keys optional)
+cp .env.example .env          # set GEMINI_API_KEY (image keys optional)
 python -m suave.server        # serves on :8000
 ```
 
