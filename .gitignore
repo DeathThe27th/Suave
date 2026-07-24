@@ -1,11 +1,13 @@
 .env
-.olise_chain.json
 __pycache__/
 *.pyc
 .venv/
 venv/
 *.egg-info/
 .pytest_cache/
-olise_local.db
 build/
 dist/
+
+# Phase A only — reference screenshots never ship (BUILD.md §0)
+/references/*
+!/references/.gitkeep
