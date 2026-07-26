@@ -26,7 +26,12 @@ echo "-- config test --"
 nginx -t 2>&1
 
 hr "suave systemd unit"
-if systemctl list-unit-files 2>/dev/null | grep -q '^suave\.service'; then
+# `list-unit-files | grep '^suave\.service'` is not reliable across systemd versions --
+# the name is not always at column 0, and this reported "not installed" on a box that
+# was running the unit. Ask systemd about the unit directly instead.
+if systemctl cat suave.service >/dev/null 2>&1; then
+    echo "-- ExecStart --"; systemctl show suave.service -p ExecStart --value 2>/dev/null | head -3
+    echo "-- unit file path --"; systemctl show suave.service -p FragmentPath --value 2>/dev/null
     systemctl status suave --no-pager --lines=0 2>&1 | head -6
     echo "enabled-on-boot: $(systemctl is-enabled suave 2>&1)"
 else

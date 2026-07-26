@@ -25,23 +25,40 @@ echo "==> [1/9] Preflight — is anything already holding the app port?"
 # already holds that port (e.g. a hand-started uvicorn from an earlier bring-up),
 # `docker run` fails with "port is already allocated" and Restart=always turns that
 # into a silent crash-loop. Catch it here, while the message is still legible.
-if ss -lntp 2>/dev/null | grep -qE '127\.0\.0\.1:8000\b'; then
-    holder="$(ss -lntp 2>/dev/null | grep -E '127\.0\.0\.1:8000\b' | grep -oE 'users:\(\("[^"]+"' | head -1 | grep -oE '"[^"]+"' | tr -d '"')"
-    if [[ "$holder" != "docker-proxy" && "$holder" != "docker" ]]; then
+port_pid="$(ss -lntpH 'sport = :8000' 2>/dev/null | grep -oE 'pid=[0-9]+' | cut -d= -f2 | head -1)"
+if [[ -n "$port_pid" ]]; then
+    holder_cmd="$(ps -o comm= -p "$port_pid" 2>/dev/null || echo unknown)"
+    holder_unit="$(grep -oE '[a-zA-Z0-9_.@-]+\.service' "/proc/$port_pid/cgroup" 2>/dev/null | head -1)"
+    echo "    port 8000 held by pid $port_pid ($holder_cmd), unit: ${holder_unit:-none}"
+
+    if [[ "$holder_cmd" == docker-proxy || "$holder_cmd" == docker ]]; then
+        echo "    that's our own container — ExecStartPre will replace it."
+    elif [[ "$holder_unit" == "suave.service" ]]; then
+        # A pre-Docker suave.service from an earlier bring-up. This script installs
+        # suave.service itself, so replacing it is in scope -- but keep a copy, since
+        # it is the only record of how the previous deploy ran.
+        old_unit="$(systemctl show suave.service -p FragmentPath --value 2>/dev/null)"
+        if [[ -n "$old_unit" && -f "$old_unit" ]]; then
+            cp -n "$old_unit" "${old_unit}.pre-docker.bak" 2>/dev/null \
+                && echo "    backed up previous unit -> ${old_unit}.pre-docker.bak"
+        fi
+        echo "    stopping + disabling the previous suave.service (replaced in step 6)"
+        systemctl disable --now suave.service || true
+        sleep 2
+        if ss -lntpH 'sport = :8000' 2>/dev/null | grep -q .; then
+            echo "!! Port 8000 still held after stopping suave.service. Investigate:" >&2
+            ss -lntp 2>/dev/null | grep ':8000' >&2
+            exit 1
+        fi
+        echo "    port 8000 released."
+    else
         cat >&2 <<EOF
-!! Port 127.0.0.1:8000 is held by a non-Docker process: ${holder:-unknown}
+!! Port 127.0.0.1:8000 is held by pid $port_pid ($holder_cmd), unit ${holder_unit:-none}.
 
-   That is almost certainly the placeholder app from the initial VPS setup. Suave's
-   container cannot bind the port while it is running, so stop it AND make sure it
-   does not come back on boot (otherwise it wins the race after a reboot and Suave
-   crash-loops). Find how it is supervised:
-
-     systemctl list-units --type=service --state=running | grep -iE 'uvicorn|hello|app'
-     ps -o pid,ppid,cmd -p \$(ss -lntpH 'sport = :8000' | grep -oE 'pid=[0-9]+' | cut -d= -f2 | head -1)
-     crontab -l | grep -i reboot
-
-   Then disable it (systemctl disable --now <unit>, or remove the @reboot cron entry
-   and kill the pid) and re-run this script.
+   Suave's container publishes that port and cannot bind it while this runs. This is
+   not a unit this script manages, so it will not be touched automatically. Stop it,
+   and make sure it does not return on boot -- anything that restarts it wins the
+   race after a reboot and leaves Suave crash-looping. Then re-run this script.
 EOF
         exit 1
     fi
