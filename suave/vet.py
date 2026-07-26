@@ -12,6 +12,7 @@ it takes. Keep the bypass flag (CONFIG.vet_enabled) so a detector failure degrad
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -27,6 +28,18 @@ class VetResult:
     findings: str = ""  # raw detector output, fed back to the repair pass
 
 
+def _detector_argv() -> list[str]:
+    """Prefer the pre-installed `impeccable` binary; fall back to npx only for local dev.
+
+    Baking the binary into the image (Dockerfile) keeps the request path off `npx --yes`,
+    whose cold resolve/download is ~26s — well past vet_timeout_s — which would time out
+    the very first VPS request and silently degrade every cold-container call to unvetted.
+    """
+    if shutil.which(CONFIG.impeccable_cmd):
+        return [CONFIG.impeccable_cmd, "detect"]
+    return ["npx", "--yes", "impeccable", "detect"]
+
+
 def detect(html: str) -> VetResult:
     """Return a VetResult. Never raises — a broken detector must not break the request."""
     if not CONFIG.vet_enabled:
@@ -36,7 +49,7 @@ def detect(html: str) -> VetResult:
             f = Path(tmp) / "page.html"
             f.write_text(html, encoding="utf-8")
             proc = subprocess.run(
-                ["npx", "--yes", "impeccable", "detect", str(f)],
+                [*_detector_argv(), str(f)],
                 capture_output=True,
                 text=True,
                 timeout=CONFIG.vet_timeout_s,

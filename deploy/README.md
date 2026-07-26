@@ -48,7 +48,7 @@ DuckDNS is dynamic DNS; set the subdomain's IP to your VPS.
 ## Step 2 — Get the code on the box
 ```bash
 sudo apt-get update && sudo apt-get install -y git
-git clone https://github.com/xxvii/Suave.git
+git clone https://github.com/DeathThe27th/Suave.git
 cd Suave
 ```
 

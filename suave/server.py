@@ -18,6 +18,7 @@ from __future__ import annotations
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastmcp import FastMCP
+from starlette.concurrency import run_in_threadpool
 
 from . import model, payment
 from .config import CONFIG
@@ -102,7 +103,13 @@ async def generate_endpoint(request: Request) -> Response:
         return JSONResponse({"error": "invalid_json"}, status_code=400)
 
     try:
-        result = generate(payload)
+        # `generate` is fully synchronous (blocking model + image HTTP, blocking
+        # subprocess for the vet step). Calling it directly from this async endpoint
+        # pins the event loop for the whole ~25s generation: /health stops answering
+        # and concurrent /generate calls serialize, so wall time blows the budget even
+        # though each call's own elapsed_s looks fine. Timeouts are how Olise died
+        # (BUILD.md §3.3) — hand it to a worker thread so the loop stays free.
+        result = await run_in_threadpool(generate, payload)
     except ValueError as e:  # bad brief
         return JSONResponse({"error": str(e)}, status_code=400)
     except model.RateLimited as e:  # provider quota — tell the caller how long to wait

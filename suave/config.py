@@ -50,6 +50,11 @@ class Config:
     # to "return unvetted page" instead of "return nothing" (BUILD.md §2 vet step).
     vet_enabled: bool = field(default_factory=lambda: _env("SUAVE_VET_ENABLED", "true").lower() != "false")
     vet_timeout_s: float = field(default_factory=lambda: _env_float("SUAVE_VET_TIMEOUT_S", 10.0))
+    # The detector executable. Baked into the image as a global `impeccable` (Dockerfile),
+    # so the request path never `npx`-downloads mid-call — a cold `npx --yes` resolve is
+    # ~26s and would blow vet_timeout_s on the first request. vet.py falls back to
+    # `npx --yes impeccable` only if this binary isn't on PATH (local dev convenience).
+    impeccable_cmd: str = field(default_factory=lambda: _env("SUAVE_IMPECCABLE_CMD", "impeccable"))
 
     # Payment — TASK ZERO is unresolved (BUILD.md §3.2). Off until the real
     # OKX Payment SDK / x402 spec is confirmed. Price is per call, in USDT.
