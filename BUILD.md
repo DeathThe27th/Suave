@@ -129,6 +129,15 @@ inside the request path, and how long it takes. Impeccable is built as a dev-tim
 tool; runtime use is adjacent to its design. Test early, and keep a bypass flag so a
 detector failure degrades to "return unvetted page" instead of "return nothing."
 
+#### Verified (2026-07-26) — this concern is closed
+Runs headless in the container at **0.45s** per page, no display, no browser. The
+detector (`impeccable@3.3.1`) is **baked into the image** as a global binary, because
+a cold `npx --yes` resolve is ~26s and would blow `vet_timeout_s` on the first request
+of every fresh container — silently degrading each cold call to unvetted. Puppeteer's
+chromium download is skipped: we scan HTML *files* (static analysis), never URLs.
+The pin is deliberate — the rule set is part of the product, so a silent `latest` bump
+must not change vetting under us. Bypass flag (`SUAVE_VET_ENABLED`) still in place.
+
 ---
 
 ## 3. OKX compliance — fixing what killed Olise
@@ -210,6 +219,21 @@ say. `verify()`/`settle()` are written against the standard x402 facilitator con
 and stay inert until `X402_FACILITATOR_URL` (or a gateway answer) is confirmed with OKX
 support. **This one question is all that's left of Task Zero.**
 
+#### The one question to put to OKX support
+> For a listed A2MCP ASP, does the OKX gateway verify and settle payment before
+> forwarding the call to my endpoint, or must my endpoint verify the `X-PAYMENT`
+> proof itself against an x402 facilitator? If the latter, what is the facilitator
+> URL to POST `/verify` and `/settle` to?
+
+Ask this in the same chat channel that invited resubmission, and while you're there
+ask what specifically failed x402 validation on Olise. Both answers land in
+`X402_FACILITATOR_URL` (or in flipping x402 on with the gateway fronting billing).
+
+**Note the trap:** enabling x402 *without* the answer is worse than leaving it off.
+`is_paid()` refuses any proof it cannot verify, so with x402 on and no facilitator
+configured, every request 402s forever and the service never serves anything — a
+different rejection, not a fix.
+
 ### 3.3 Timeouts
 
 - Hard timeout budget per call, well under whatever OKX's tester tolerates
@@ -230,13 +254,32 @@ From the docs, registration is conversational via Onchain OS skills:
 
 ### 3.5 Pre-submit checklist
 
-- [ ] MCP Inspector connects and successfully calls the tool
-- [ ] A real AI client can call it end-to-end
-- [ ] Unpaid request returns a correct 402 challenge (once 3.2 is resolved)
-- [ ] Endpoint reachable from outside your network, over HTTPS, on a domain
-- [ ] Survives a VPS reboot
-- [ ] Returns within timeout budget under concurrent load
-- [ ] The agent responds to `"I would like to use the services of agent ID {id}"`
+Status as of 2026-07-26. Everything verifiable *off the VPS* is done; what remains
+needs the box itself, or an answer from OKX.
+
+- [x] MCP Inspector connects and successfully calls the tool — verified against the
+      built image with a real MCP client: `generate_landing_page` lists with its five
+      params and returns a full page over streamable HTTP at `/mcp`.
+- [x] A real AI client can call it end-to-end — same handshake, tool call returned
+      ~24KB of HTML.
+- [ ] Unpaid request returns a correct 402 challenge — **blocked on 3.2.** `challenge()`
+      emits the spec-shaped 402, but x402 stays OFF until the seller-side settle path
+      is confirmed. See "the one question" below.
+- [ ] Endpoint reachable from outside your network, over HTTPS, on a domain —
+      **domain + TLS + nginx are live and working**, but `suave-demo.duckdns.org`
+      still serves the Day-1 hello-world (`{"ok":true}`), not Suave. Needs
+      `deploy/update.sh` on the box.
+- [ ] Survives a VPS reboot — needs the real deploy first.
+- [x] Returns within timeout budget under concurrent load — three concurrent
+      generations at 19.9 / 25.0 / 27.1s wall, inside the 45s budget, with `/health`
+      answering in 1.5ms throughout. (Before the threadpool fix this serialized to
+      51.7s with `/health` timing out entirely — see §3.3.)
+- [ ] The agent responds to `"I would like to use the services of agent ID {id}"` —
+      post-registration, needs the ASP id.
+
+**Free-tier note:** three concurrent generations did not trip a Gemini 429, but the
+free tier is a per-minute quota — sustained concurrency will. The 429 path returns
+clean JSON with `Retry-After` rather than hanging.
 
 ---
 
