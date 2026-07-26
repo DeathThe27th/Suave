@@ -12,6 +12,7 @@ nginx terminates TLS and proxies to `127.0.0.1:8000`.
 ```
 deploy/
   deploy.conf.example   copy -> deploy.conf (DOMAIN, email, optional heartbeat)
+  doctor.sh             read-only state report — run first, changes nothing
   bootstrap.sh          one-shot bring-up (idempotent, run as root)
   update.sh             pull + rebuild + restart + health-check
   healthcheck.sh        cron probe every 5 min, auto-heals, optional external ping
@@ -44,6 +45,18 @@ DuckDNS is dynamic DNS; set the subdomain's IP to your VPS.
    Certbot's HTTP-01 challenge will fail if this doesn't resolve yet.
    (Note: `duckdns.org` is on the Public Suffix List, so each subdomain gets its own
    Let's Encrypt rate-limit bucket — no shared-limit surprises.)
+
+## Step 1.5 — Check what's already on the box
+If the VPS has ever served anything on this domain, find out what before overwriting it:
+```bash
+curl -fsSL https://raw.githubusercontent.com/DeathThe27th/Suave/main/deploy/doctor.sh | sudo bash
+```
+Read-only. It reports the nginx sites, what holds port 8000 and what restarts it,
+Docker/cert/env state, and what the domain currently answers. The two things that
+block a clean bootstrap are **a non-Docker process on 127.0.0.1:8000** (the container
+can't bind it) and **an older enabled nginx site with the same `server_name`**
+(nginx keeps whichever loads first). bootstrap.sh now detects both, but knowing up
+front beats reading an abort message.
 
 ## Step 2 — Get the code on the box
 ```bash
@@ -79,8 +92,11 @@ sudo bash deploy/bootstrap.sh
 It installs Docker + nginx + certbot, opens the firewall, builds `suave:latest`,
 installs & starts the systemd service, renders the nginx site, obtains the cert with
 `--redirect`, and installs the health cron. Idempotent — re-run any time.
-> On the very first run, if `/etc/suave/suave.env` didn't exist it's created from the
-> template and you'll be told to edit it. Fill in `GEMINI_API_KEY`, then re-run.
+> **First run stops early, on purpose.** If `/etc/suave/suave.env` didn't exist, it's
+> created from the template and the script exits so you can fill in `GEMINI_API_KEY`.
+> Continuing with an empty key would build and start a service that reports healthy
+> but answers `model_key_set:false` and fails every generate call. Fill it in, then
+> run the same command again — it's idempotent and picks up where it left off.
 
 ## Step 6 — Verify (from anywhere, not just the box)
 ```bash

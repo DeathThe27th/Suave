@@ -19,7 +19,9 @@ echo "$DOMAIN -> $(getent hosts "$DOMAIN" | awk '{print $1}' | paste -sd, - || e
 hr "nginx sites-enabled"
 ls -la /etc/nginx/sites-enabled/ 2>/dev/null || echo "(no sites-enabled dir)"
 echo "-- server_name / proxy_pass in each --"
-grep -rnE 'server_name|proxy_pass|root ' /etc/nginx/sites-enabled/ 2>/dev/null || echo "(none found)"
+# -R (not -r): sites-enabled holds symlinks, and -r refuses to follow them, which
+# silently reports "nothing configured" on a box that is in fact serving traffic.
+grep -RnE 'server_name|proxy_pass|root |listen ' /etc/nginx/sites-enabled/ 2>/dev/null || echo "(none found)"
 echo "-- config test --"
 nginx -t 2>&1
 
@@ -33,6 +35,28 @@ fi
 
 hr "other listeners"
 ss -lntp 2>/dev/null | grep -E ':(80|443|8000)\b' || echo "(nothing on 80/443/8000)"
+
+hr "who holds :8000, and what restarts it"
+# The container publishes 127.0.0.1:8000. Anything else holding that port blocks the
+# deploy; anything that RESURRECTS it on boot also breaks the reboot test, so both
+# the process and its supervisor matter.
+p8000="$(ss -lntpH 'sport = :8000' 2>/dev/null | grep -oE 'pid=[0-9]+' | cut -d= -f2 | head -1)"
+if [[ -n "$p8000" ]]; then
+    ps -o pid,ppid,user,lstart,cmd -p "$p8000" 2>/dev/null
+    echo "-- owning systemd unit (if any) --"
+    cat "/proc/$p8000/cgroup" 2>/dev/null | grep -oE '[a-zA-Z0-9_.@-]+\.service' | head -1 || echo "(not under a .service cgroup)"
+    echo "-- parent process --"
+    ppid="$(ps -o ppid= -p "$p8000" 2>/dev/null | tr -d ' ')"
+    [[ -n "$ppid" ]] && ps -o pid,cmd -p "$ppid" 2>/dev/null
+else
+    echo "(port 8000 free)"
+fi
+echo "-- enabled units mentioning uvicorn/hello/app --"
+systemctl list-unit-files --state=enabled 2>/dev/null | grep -iE 'uvicorn|hello|suave|app' || echo "(none)"
+echo "-- @reboot cron entries --"
+{ crontab -l 2>/dev/null; sudo -n crontab -l -u root 2>/dev/null; } | grep -i reboot || echo "(none)"
+echo "-- rc.local --"
+[[ -f /etc/rc.local ]] && grep -vE '^\s*(#|$)' /etc/rc.local || echo "(no rc.local)"
 
 hr "docker"
 if command -v docker >/dev/null 2>&1; then
